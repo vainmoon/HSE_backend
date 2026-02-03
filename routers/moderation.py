@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from services.moderation import ModerationService
 
+
 class ModerateItemInDto(BaseModel):
     seller_id: int
     is_verified_seller: bool
@@ -12,12 +13,16 @@ class ModerateItemInDto(BaseModel):
     images_qty: int
 
 
+class ModerateItemOutDto(BaseModel):
+    approved: bool
+
+
 router = APIRouter()
 
 moderation_service = ModerationService()
 
-@router.post("/predict")
-async def moderate_item(dto: ModerateItemInDto) -> bool:
-    result = moderation_service.moderate_item(dto.is_verified_seller,
-                                     dto.images_qty)
-    return {'moderation result' : result}
+
+@router.post('/predict')
+async def moderate_item(dto: ModerateItemInDto) -> ModerateItemOutDto:
+    result = moderation_service.moderate_item(dto.is_verified_seller, dto.images_qty)
+    return ModerateItemOutDto(approved=result)
