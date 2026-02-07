@@ -5,9 +5,16 @@ from main import app
 from services.moderation import ModerationService
 
 
+class DummyModel:
+    pass
+
+
 @pytest.fixture
-def app_client() -> TestClient:
-    return TestClient(app)
+def app_client():
+    app.state.model = DummyModel()
+    client = TestClient(app)
+    yield client
+    app.state.model = None
 
 
 @pytest.fixture

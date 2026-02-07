@@ -6,13 +6,13 @@ from routers.moderation import ModerateItemInDto
 @pytest.mark.parametrize(
     'invalid_field, invalid_value',
     [
-        ('seller_id', 3.4),
+        ('seller_id', -3),
         ('is_verified_seller', 4),
-        ('item_id', 3.4),
-        ('name', 123),
-        ('description', 456),
-        ('category', 6.7),
-        ('images_qty', 2.5),
+        ('item_id', -4),
+        ('name', ''),
+        ('description', ''),
+        ('category', -6),
+        ('images_qty', -2),
     ],
 )
 def test_invalid_item(
