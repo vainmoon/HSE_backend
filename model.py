@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-import pickle
 
 
 def train_model():
@@ -15,16 +14,6 @@ def train_model():
     model = LogisticRegression()
     model.fit(X, y)
     return model
-
-
-def save_model(model, path="model.pkl") -> None:
-    with open(path, "wb") as f:
-        pickle.dump(model, f)
-
-
-def load_model(path="model.pkl"):
-    with open(path, "rb") as f:
-        return pickle.load(f)
 
 
 def preprocess(row: dict) -> list:

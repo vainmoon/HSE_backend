@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("startup")
-    if app.state.model is None:
+    if not hasattr(app.state, "model") or app.state.model is None:
         app.state.model = load_or_train_model()
 
     yield
