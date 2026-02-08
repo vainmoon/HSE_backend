@@ -11,26 +11,30 @@ def train_model():
     # Целевая переменная: 1 = нарушение, 0 = нет нарушения
     y = (X[:, 0] < 0.3) & (X[:, 1] < 0.2)
     y = y.astype(int)
-    
+
     model = LogisticRegression()
     model.fit(X, y)
     return model
+
 
 def save_model(model, path="model.pkl") -> None:
     with open(path, "wb") as f:
         pickle.dump(model, f)
 
+
 def load_model(path="model.pkl"):
     with open(path, "rb") as f:
         return pickle.load(f)
-    
+
+
 def preprocess(row: dict) -> list:
     preprocess_row = {}
-    preprocess_row['is_verified_seller'] = float(row['is_verified_seller'])
-    preprocess_row['images_qty'] = row['images_qty'] / 10
-    preprocess_row['len_description'] = len(row['description']) / 1000
-    preprocess_row['category'] = row['category'] / 100
+    preprocess_row["is_verified_seller"] = float(row["is_verified_seller"])
+    preprocess_row["images_qty"] = row["images_qty"] / 10
+    preprocess_row["len_description"] = len(row["description"]) / 1000
+    preprocess_row["category"] = row["category"] / 100
     return list(preprocess_row.values())
+
 
 def predict(model, row: dict) -> tuple[int, float]:
     preprocess_row = [preprocess(row)]

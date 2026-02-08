@@ -7,6 +7,7 @@ from dependencies import get_model
 
 logger = logging.getLogger(__name__)
 
+
 class ModerateItemInDto(BaseModel):
     seller_id: int = Field(ge=0)
     is_verified_seller: bool
@@ -27,12 +28,14 @@ router = APIRouter()
 moderation_service = ModerationService()
 
 
-@router.post('/predict')
-async def moderate_item(dto: ModerateItemInDto, model=Depends(get_model)) -> ModerateItemOutDto:
+@router.post("/predict")
+async def moderate_item(
+    dto: ModerateItemInDto, model=Depends(get_model)
+) -> ModerateItemOutDto:
     logger.info("Moderation request: %s", dto.model_dump())
 
     data = dto.model_dump()
     pred, confidence = moderation_service.moderate_item(model, data)
     logger.info("Moderation result: is_violation=%s, probability=%s", pred, confidence)
-    
+
     return ModerateItemOutDto(is_violation=pred, probability=confidence)

@@ -12,8 +12,8 @@ class DummyModel:
 @pytest.fixture
 def app_client():
     app.state.model = DummyModel()
-    client = TestClient(app)
-    yield client
+    with TestClient(app) as client:
+        yield client
     app.state.model = None
 
 
@@ -23,8 +23,8 @@ def valid_item() -> ModerateItemInDto:
         seller_id=1,
         is_verified_seller=True,
         item_id=2,
-        name='valid item',
-        description='valid item',
+        name="valid item",
+        description="valid item",
         category=3,
         images_qty=4,
     )

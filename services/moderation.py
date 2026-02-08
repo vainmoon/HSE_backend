@@ -1,6 +1,7 @@
 from model import predict
 from errors import ModelUnavailableError, InferenceError
 
+
 class ModerationService:
     def moderate_item(self, model, moderate_item: dict):
         if model is None:
