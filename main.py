@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from routers.moderation import router as moderation_router
-from services.model_manager import load_or_train_model
+from services.model_manager import get_model
 from errors import InferenceError, ModelUnavailableError
 
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("startup")
     if not hasattr(app.state, "model") or app.state.model is None:
-        app.state.model = load_or_train_model()
+        app.state.model = get_model()
 
     yield
     logger.info("shutdown")
