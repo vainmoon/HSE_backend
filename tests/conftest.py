@@ -33,3 +33,13 @@ def valid_item() -> ModerateItemInDto:
 @pytest.fixture
 def moderation_service() -> ModerationService:
     return ModerationService()
+
+
+# Configure pytest-asyncio
+pytest_plugins = ("pytest_asyncio",)
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+

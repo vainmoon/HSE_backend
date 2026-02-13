@@ -17,6 +17,8 @@ class ModerateItemInDto(BaseModel):
     category: int = Field(ge=0)
     images_qty: int = Field(ge=0)
 
+class ModerateItemByIdInDto(BaseModel):
+    item_id: int = Field(ge=0)
 
 class ModerateItemOutDto(BaseModel):
     is_violation: bool
@@ -37,5 +39,18 @@ async def moderate_item(
     data = dto.model_dump()
     pred, confidence = moderation_service.moderate_item(model, data)
     logger.info("Moderation result: is_violation=%s, probability=%s", pred, confidence)
+
+    return ModerateItemOutDto(is_violation=pred, probability=confidence)
+
+
+@router.post("/simple_predict")
+async def simple_predict(
+    dto: ModerateItemByIdInDto, model=Depends(get_model)
+) -> ModerateItemOutDto:
+    logger.info("Simple moderation request: %s", dto.model_dump())
+
+    data = dto.model_dump()
+    pred, confidence = await moderation_service.moderate_item_by_id(model, data)
+    logger.info("Simple moderation result: is_violation=%s, probability=%s", pred, confidence)
 
     return ModerateItemOutDto(is_violation=pred, probability=confidence)

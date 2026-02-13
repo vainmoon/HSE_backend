@@ -6,7 +6,7 @@ import logging
 
 from routers.moderation import router as moderation_router
 from services.model_manager import get_model
-from errors import InferenceError, ModelUnavailableError
+from errors import InferenceError, ModelUnavailableError, SellerNotFoundError, ItemNotFoundError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,6 +41,19 @@ async def model_unavailable_error_handler(request, e):
         content={"detail": f"Model is unavailable"},
     )
 
+@app.exception_handler(SellerNotFoundError)
+async def seller_not_found_error_handler(request, e):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": f"Seller not found"},
+    )
+
+@app.exception_handler(ItemNotFoundError)
+async def item_not_found_error_handler(request, e):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": f"Item not found"},
+    )
 
 @app.get("/")
 async def root():
