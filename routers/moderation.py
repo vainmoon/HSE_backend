@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from typing import Optional
 import logging
 
 from services.moderation import ModerationService
-from dependencies import get_model
+from dependencies import get_model, get_kafka_client
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,55 @@ class ModerateItemOutDto(BaseModel):
 router = APIRouter()
 
 moderation_service = ModerationService()
+
+
+class AsyncPredictInDto(BaseModel):
+    item_id: int = Field(ge=0)
+
+
+class AsyncPredictOutDto(BaseModel):
+    task_id: int
+    status: str
+    message: str
+
+
+class ModerationResultOutDto(BaseModel):
+    task_id: int
+    status: str
+    is_violation: Optional[bool]
+    probability: Optional[float]
+
+
+@router.post("/async_predict")
+async def async_predict(
+    dto: AsyncPredictInDto,
+    kafka_client=Depends(get_kafka_client),
+) -> AsyncPredictOutDto:
+    logger.info("Async moderation request: item_id=%s", dto.item_id)
+
+    result = await moderation_service.create_async_predict(kafka_client, dto.item_id)
+
+    logger.info("Async moderation task created: task_id=%s", result.id)
+
+    return AsyncPredictOutDto(
+        task_id=result.id,
+        status="pending",
+        message="Moderation request accepted",
+    )
+
+
+@router.get("/moderation_result/{task_id}")
+async def get_moderation_result(task_id: int) -> ModerationResultOutDto:
+    logger.info("Moderation result request: task_id=%s", task_id)
+
+    result = await moderation_service.get_moderation_result(task_id)
+
+    return ModerationResultOutDto(
+        task_id=result.id,
+        status=result.status,
+        is_violation=result.is_violation,
+        probability=result.probability,
+    )
 
 
 @router.post("/predict")

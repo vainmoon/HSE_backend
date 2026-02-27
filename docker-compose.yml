@@ -1,0 +1,89 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin1
+      POSTGRES_DB: avito_moderation
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d avito_moderation"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8003 --reload
+    ports:
+      - "8003:8003"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: admin1
+      DB_NAME: avito_moderation
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker:
+    build: .
+    command: python -m workers.moderation_worker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: admin1
+      DB_NAME: avito_moderation
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --reserve-memory
+      - "0M"
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+
+  console:
+    image: redpandadata/console:latest
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redpanda
+
+volumes:
+  postgres_data:

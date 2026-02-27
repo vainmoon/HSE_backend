@@ -6,7 +6,8 @@ import logging
 
 from routers.moderation import router as moderation_router
 from services.model_manager import get_model
-from errors import InferenceError, ModelUnavailableError, SellerNotFoundError, ItemNotFoundError
+from clients.kafka import KafkaClient
+from errors import InferenceError, ModelUnavailableError, SellerNotFoundError, ItemNotFoundError, ModerationResultNotFoundError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,7 +20,12 @@ async def lifespan(app: FastAPI):
     if not hasattr(app.state, "model") or app.state.model is None:
         app.state.model = get_model()
 
+    app.state.kafka_client = KafkaClient()
+    await app.state.kafka_client.start()
+
     yield
+
+    await app.state.kafka_client.stop()
     logger.info("shutdown")
 
 
@@ -55,6 +61,13 @@ async def item_not_found_error_handler(request, e):
         content={"detail": f"Item not found"},
     )
 
+@app.exception_handler(ModerationResultNotFoundError)
+async def moderation_result_not_found_error_handler(request, e):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Moderation result not found"},
+    )
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -63,4 +76,4 @@ async def root():
 app.include_router(moderation_router, prefix="/moderation")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8003)
+    uvicorn.run(app, host="0.0.0.0", port=8003)
