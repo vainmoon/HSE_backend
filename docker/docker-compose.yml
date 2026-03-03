@@ -47,5 +47,22 @@ services:
     depends_on:
       - flyway
 
+  tests:
+    profiles: ["test"]
+    build:
+      context: ..
+      dockerfile: docker/app/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ..:/project
+    working_dir: /project
+    command: pytest -v
+    environment:
+      - PYTHONPATH=/project:/project/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
