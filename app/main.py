@@ -7,6 +7,7 @@ import logging
 from routers.moderation import router as moderation_router
 from services.model_manager import get_model
 from errors import InferenceError, ModelUnavailableError, SellerNotFoundError, ItemNotFoundError
+from clients.kafka import AsyncKafkaClient
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,11 +17,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("startup")
+
     if not hasattr(app.state, "model") or app.state.model is None:
         app.state.model = get_model()
 
+    app.state.kafka_client = AsyncKafkaClient()
+    await app.state.kafka_client.start()
+
     yield
     logger.info("shutdown")
+    await app.state.kafka_client.stop()
 
 
 app = FastAPI(lifespan=lifespan)
