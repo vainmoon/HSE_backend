@@ -6,7 +6,7 @@ import logging
 
 from routers.moderation import router as moderation_router
 from services.model_manager import get_model
-from errors import InferenceError, ModelUnavailableError, SellerNotFoundError, ItemNotFoundError
+from errors import *
 from clients.kafka import AsyncKafkaClient
 
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +59,13 @@ async def item_not_found_error_handler(request, e):
     return JSONResponse(
         status_code=404,
         content={"detail": f"Item not found"},
+    )
+
+@app.exception_handler(ModerationResultNotFoundError)
+async def moderation_result_not_found_error_handler(request, e):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": f"Moderation result not found"},
     )
 
 @app.get("/")

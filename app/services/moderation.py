@@ -26,11 +26,15 @@ class ModerationService:
 
         return self.moderate_item(model, features.model_dump())
     
-    async def send_moderation_request(self, kafka_client, item_id: int) -> int:
+    async def send_moderation_request(self, kafka_client, item_id: int) -> dict:
         await self.item_repo.get(item_id)
 
-        task = await self.moderation_results_repo.create(item_id)
+        task_info = await self.moderation_results_repo.create(item_id)
 
         await kafka_client.send_moderation_request(item_id)
 
-        return task.model_dump()
+        return task_info.model_dump()
+    
+    async def get_moderation_result(self, task_id: int) -> dict:
+        task_result = await self.moderation_results_repo.select(task_id)
+        return task_result.model_dump()

@@ -29,6 +29,12 @@ class ModerateTaskInfoOutDto(BaseModel):
     status: str
     message: str
 
+class ModerateTaskResultOutDto(BaseModel):
+    task_id: int = Field(ge=0)
+    status: str
+    is_violation: bool | None
+    probability: float | None
+
 router = APIRouter()
 
 moderation_service = ModerationService()
@@ -67,10 +73,23 @@ async def async_predict(
     logger.info("Async moderation request: %s", dto.model_dump())
     data = dto.model_dump()
     
-    task = await moderation_service.send_moderation_request(kafka_client, data["item_id"])
+    tas_info = await moderation_service.send_moderation_request(kafka_client, data["item_id"])
 
     return ModerateTaskInfoOutDto(
-        task_id=task["id"],
-        status=task["status"],
+        task_id=tas_info["id"],
+        status=tas_info["status"],
         message="Moderation request accepted."
+    )
+
+@router.get("/moderation_result/{task_id}")
+async def get_moderation_result(task_id: int) -> ModerateTaskResultOutDto:
+    logger.info("Getting moderation result for task_id: %s", task_id)
+
+    task_result = await moderation_service.get_moderation_result(task_id)
+
+    return ModerateTaskResultOutDto(
+        task_id=task_id,
+        status=task_result["status"],
+        is_violation=task_result["is_violation"],
+        probability=task_result["probability"]
     )
