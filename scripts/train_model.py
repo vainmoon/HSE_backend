@@ -6,7 +6,7 @@ import pickle
 import mlflow
 from mlflow.sklearn import log_model
 
-from model import train_model
+from app.model import train_model
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -2,3 +2,5 @@
 model.pkl
 mlflow.db
 mlruns/
+.env
+__pycache__
