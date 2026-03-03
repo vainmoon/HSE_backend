@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from services.moderation import ModerationService
-from dependencies import get_model
+from dependencies import get_model, get_kafka_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,10 @@ class ModerateItemOutDto(BaseModel):
     is_violation: bool
     probability: float
 
+class ModerateTaskInfoOutDto(BaseModel):
+    task_id: int = Field(ge=0)
+    status: str
+    message: str
 
 router = APIRouter()
 
@@ -50,7 +54,23 @@ async def simple_predict(
     logger.info("Simple moderation request: %s", dto.model_dump())
 
     data = dto.model_dump()
-    pred, confidence = await moderation_service.moderate_item_by_id(model, data)
+    pred, confidence = await moderation_service.moderate_item_by_id(model, data["item_id"])
     logger.info("Simple moderation result: is_violation=%s, probability=%s", pred, confidence)
 
     return ModerateItemOutDto(is_violation=pred, probability=confidence)
+
+@router.post("/async_predict")
+async def async_predict(
+    dto: ModerateItemByIdInDto,
+    kafka_client=Depends(get_kafka_client)
+) -> ModerateTaskInfoOutDto:
+    logger.info("Async moderation request: %s", dto.model_dump())
+    data = dto.model_dump()
+    
+    task = await moderation_service.send_moderation_request(kafka_client, data["item_id"])
+
+    return ModerateTaskInfoOutDto(
+        task_id=task["id"],
+        status=task["status"],
+        message="Moderation request accepted."
+    )
