@@ -2,7 +2,7 @@ from typing import Mapping, Any, Sequence
 
 from clients.postgres import get_pg_connection
 from errors import ItemNotFoundError
-from models.items import ItemModel
+from models.items import ItemModel, ItemWithSellerModel
 
 class ItemPostgresStorage:
     async def create(self, name: str, description: str, category: int, images_qty: int, seller_id: int) -> Mapping[str, Any]:
@@ -43,7 +43,31 @@ class ItemPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
+            raise ItemNotFoundError()
+
+    async def select_with_seller(self, id: int) -> Mapping[str, Any]:
+        query = '''
+            SELECT
+                item.id AS item_id,
+                item.name,
+                item.description,
+                item.category,
+                item.images_qty,
+                seller.id AS seller_id,
+                seller.is_verified_seller
+            FROM item
+            JOIN seller ON item.seller_id = seller.id
+            WHERE item.id = $1::INTEGER
+            LIMIT 1
+        '''
+
+        async with get_pg_connection() as connection:
+            row = await connection.fetchrow(query, id)
+
+            if row:
+                return dict(row)
+
             raise ItemNotFoundError()
 
     async def select_many(self) -> Sequence[Mapping[str, Any]]:
@@ -87,6 +111,10 @@ class ItemRepository:
     async def create(self, name: str, description: str, category: int, images_qty: int, seller_id: int) -> ItemModel:
         raw_item = await self.item_postgres_storage.create(name, description, category, images_qty, seller_id)
         return ItemModel(**raw_item)
+
+    async def get_with_seller(self, item_id: int) -> ItemWithSellerModel:
+        raw = await self.item_postgres_storage.select_with_seller(item_id)
+        return ItemWithSellerModel(**raw)
 
     async def get(self, item_id: int) -> ItemModel:
         raw_item = await self.item_postgres_storage.select(item_id)

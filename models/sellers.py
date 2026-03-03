@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SellerModel(BaseModel):
-    id: int
+    id: int = Field(ge=0)
     is_verified_seller: bool

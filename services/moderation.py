@@ -21,18 +21,6 @@ class ModerationService:
             raise InferenceError(e)
 
     async def moderate_item_by_id(self, model, moderate_item_by_id: dict):
-        item = await self.item_repo.get(moderate_item_by_id['item_id'])
+        features = await self.item_repo.get_with_seller(moderate_item_by_id['item_id'])
 
-        seller = await self.seller_repo.get(item.seller_id)
-
-        features = {
-            "seller_id": seller.id,
-            "is_verified_seller": seller.is_verified_seller,
-            "item_id": item.id,
-            "name": item.name,
-            "description": item.description,
-            "category": item.category,
-            "images_qty": item.images_qty,
-        }
-
-        return self.moderate_item(model, features)
+        return self.moderate_item(model, features.model_dump())
