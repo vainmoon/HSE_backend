@@ -88,12 +88,25 @@ services:
 
   console:
     image: redpandadata/console:latest
-    environment:
-      KAFKA_BROKERS: redpanda:29092
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     depends_on:
       - redpanda
 
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/app/Dockerfile
+    command: python -m workers.moderation_worker
+    env_file:
+      - .env
+    volumes:
+      - ../app:/app
+    restart: unless-stopped
+    depends_on:
+      - redpanda
+      - flyway
 volumes:
   postgres_data:

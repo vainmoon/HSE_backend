@@ -16,7 +16,7 @@ class ModerationResultsPostgresStorage:
         
     async def select(self, id: int) -> Mapping[str, Any]:
         query = '''
-            SELECT * 
+            SELECT *
             FROM moderation_results
             WHERE id = $1::INTEGER
             LIMIT 1
@@ -28,7 +28,30 @@ class ModerationResultsPostgresStorage:
                 return dict(row)
 
             raise ModerationResultNotFoundError()
-        
+
+    async def update(self, id: int, **updates: Any) -> Mapping[str, Any]:
+        keys, args = [], []
+
+        for key, value in updates.items():
+            keys.append(key)
+            args.append(value)
+
+        fields_str = ', '.join([f'{key} = ${i + 2}' for i, key in enumerate(keys)])
+
+        query = f'''
+            UPDATE moderation_results
+            SET {fields_str}
+            WHERE id = $1::INTEGER
+            RETURNING *
+        '''
+
+        async with get_pg_connection() as connection:
+            row = await connection.fetchrow(query, id, *args)
+
+            if row:
+                return dict(row)
+            
+            raise ModerationResultNotFoundError()
         
 class ModerationResultsRepository:
     moderation_results_postgres_storage = ModerationResultsPostgresStorage()
@@ -39,4 +62,8 @@ class ModerationResultsRepository:
     
     async def select(self, id: int) -> ModerationResultModel:
         result = await self.moderation_results_postgres_storage.select(id)
+        return ModerationResultModel(**result)
+
+    async def update(self, id: int, **changes) -> ModerationResultModel:
+        result = await self.moderation_results_postgres_storage.update(id, **changes)
         return ModerationResultModel(**result)

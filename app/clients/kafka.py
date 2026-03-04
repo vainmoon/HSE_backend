@@ -21,8 +21,9 @@ class AsyncKafkaClient:
         if self.producer:
             await self.producer.stop()
 
-    async def send_moderation_request(self, item_id: int):
+    async def send_moderation_request(self, item_id: int, task_id: int):
         message = {
+            "task_id": task_id,
             "item_id": item_id,
             "timestamp": datetime.now().isoformat()
         }

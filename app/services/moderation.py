@@ -31,7 +31,7 @@ class ModerationService:
 
         task_info = await self.moderation_results_repo.create(item_id)
 
-        await kafka_client.send_moderation_request(item_id)
+        await kafka_client.send_moderation_request(item_id, task_info.id)
 
         return task_info.model_dump()
     
