@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "redpanda:29092")
 TOPIC = "moderation"
+MAX_RETRIES = 3
+RETRY_DELAY = 5
 
 
 async def process_message(
@@ -29,26 +31,33 @@ async def process_message(
     item_id = data["item_id"]
     logger.info(f"Processing moderation task_id={task_id} for item_id={item_id}")
 
-    try:
-        pred, confidence = await moderation_service.moderate_item_by_id(model, item_id)
-        await moderation_repo.update(
-            task_id,
-            status="completed",
-            is_violation=bool(pred),
-            probability=confidence,
-            processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
-        )
-        logger.info(f"task_id={task_id}: violation={bool(pred)}, confidence={confidence:.4f}")
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"task_id={task_id}: failed with error: {error_msg}")
-        await moderation_repo.update(
-            task_id,
-            status="failed",
-            error_message=error_msg,
-            processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
-        )
-        await kafka_client.send_to_dlq(data, error_msg)
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            pred, confidence = await moderation_service.moderate_item_by_id(model, item_id)
+            await moderation_repo.update(
+                task_id,
+                status="completed",
+                is_violation=bool(pred),
+                probability=confidence,
+                processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+            logger.info(f"task_id={task_id}: success on attempt {attempt}/{MAX_RETRIES}")
+            return
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"task_id={task_id}: attempt {attempt}/{MAX_RETRIES} failed: {last_error}")
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY)
+
+    logger.error(f"task_id={task_id}: all {MAX_RETRIES} attempts exhausted")
+    await moderation_repo.update(
+        task_id,
+        status="failed",
+        error_message=last_error,
+        processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    await kafka_client.send_to_dlq(data, last_error)
 
 
 async def run():
