@@ -1,6 +1,10 @@
 from typing import Mapping, Any, Sequence
+from datetime import timedelta
+from json import dumps, loads
+
 
 from clients.postgres import get_pg_connection
+from clients.redis import get_redis_connection
 from models.moderation_results import ModerationResultModel
 from errors import ModerationResultNotFoundError
 
@@ -53,17 +57,51 @@ class ModerationResultsPostgresStorage:
             
             raise ModerationResultNotFoundError()
         
+class ModerationResultsRedisStorage:
+    # TTL = 5 минут.
+    # Клиент может повторно запрашивать результат пока воркер не завершит задачу.
+    # 5 минут — разумный баланс: достаточно для снижения нагрузки на БД при частых
+    # опросах, но не слишком долго, чтобы клиент не получал устаревший статус pending.
+    _TTL: timedelta = timedelta(minutes=5)
+
+    async def set(self, row_id: int, row: Mapping[str, Any]) -> None:
+        async with get_redis_connection() as connection:
+            pipeline = connection.pipeline()
+            pipeline.set(
+                name=str(row_id),
+                value=dumps(row, default=str)
+            )
+            pipeline.expire(str(row_id), self._TTL)
+            await pipeline.execute()
+    
+    async def get(self, row_id: int) -> Mapping[str, Any] | None:
+        async with get_redis_connection() as connection:
+            row = await connection.get(str(row_id))
+
+            if row:
+                return loads(row)
+            
+            return None
+
+
 class ModerationResultsRepository:
     moderation_results_postgres_storage = ModerationResultsPostgresStorage()
+    moderation_results_redis_storage = ModerationResultsRedisStorage()
 
     async def create(self, item_id: int) -> ModerationResultModel:
         result = await self.moderation_results_postgres_storage.create(item_id)
         return ModerationResultModel(**result)
     
     async def select(self, id: int) -> ModerationResultModel:
+        if result := await self.moderation_results_redis_storage.get(id):
+            return ModerationResultModel(**result)
+        
         result = await self.moderation_results_postgres_storage.select(id)
+        await self.moderation_results_redis_storage.set(id, result)
+
         return ModerationResultModel(**result)
 
     async def update(self, id: int, **changes) -> ModerationResultModel:
         result = await self.moderation_results_postgres_storage.update(id, **changes)
+        await self.moderation_results_redis_storage.set(id, result)
         return ModerationResultModel(**result)
