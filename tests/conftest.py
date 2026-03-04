@@ -1,5 +1,6 @@
 import pytest
-from unittest.mock import AsyncMock
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 from routers.moderation import ModerateItemInDto
 from main import app
@@ -50,7 +51,25 @@ def moderation_service() -> ModerationService:
     return ModerationService()
 
 
-# Configure pytest-asyncio
+@pytest.fixture
+def redis_mock(monkeypatch):
+    mock_connection = AsyncMock()
+    mock_pipeline = MagicMock()
+    mock_pipeline.execute = AsyncMock()
+    mock_connection.pipeline = MagicMock(return_value=mock_pipeline)
+
+    @asynccontextmanager
+    async def fake_get_redis_connection():
+        yield mock_connection
+
+    monkeypatch.setattr(
+        "repositories.moderation_results.get_redis_connection",
+        fake_get_redis_connection,
+    )
+
+    return mock_connection, mock_pipeline
+
+
 pytest_plugins = ("pytest_asyncio",)
 
 
