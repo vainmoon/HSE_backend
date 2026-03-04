@@ -1,0 +1,2 @@
+ALTER TABLE public.item
+    ADD COLUMN is_closed BOOL NOT NULL DEFAULT FALSE;

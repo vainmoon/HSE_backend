@@ -67,6 +67,7 @@ class TestItemRepository:
             "category": 1,
             "images_qty": 2,
             "seller_id": 1,
+            "is_closed": False,
         }
         pg_mock.fetchrow.return_value = item_data
 
@@ -98,6 +99,7 @@ class TestItemRepository:
             "category": 1,
             "images_qty": 1,
             "seller_id": 1,
+            "is_closed": False,
         }
         pg_mock.fetchrow.return_value = item_data
 

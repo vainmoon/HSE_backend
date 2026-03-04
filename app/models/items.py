@@ -8,6 +8,7 @@ class ItemModel(BaseModel):
     category: int = Field(ge=0)
     images_qty: int = Field(ge=0)
     seller_id: int = Field(ge=0)
+    is_closed: bool = False
 
 
 class ItemWithSellerModel(BaseModel):

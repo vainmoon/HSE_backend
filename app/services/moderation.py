@@ -38,3 +38,7 @@ class ModerationService:
     async def get_moderation_result(self, task_id: int) -> dict:
         task_result = await self.moderation_results_repo.select(task_id)
         return task_result.model_dump()
+
+    async def close_item(self, item_id: int) -> None:
+        await self.item_repo.delete(item_id)
+        await self.moderation_results_repo.delete_by_item_id(item_id)

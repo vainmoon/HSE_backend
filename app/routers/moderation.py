@@ -35,6 +35,9 @@ class ModerateTaskResultOutDto(BaseModel):
     is_violation: bool | None
     probability: float | None
 
+class CloseItemInDto(BaseModel):
+    item_id: int = Field(ge=0)
+
 router = APIRouter()
 
 moderation_service = ModerationService()
@@ -80,6 +83,12 @@ async def async_predict(
         status=tas_info["status"],
         message="Moderation request accepted."
     )
+
+@router.post("/close", status_code=204)
+async def close_item(dto: CloseItemInDto) -> None:
+    logger.info("Close item request: %s", dto.model_dump())
+    await moderation_service.close_item(dto.item_id)
+
 
 @router.get("/moderation_result/{task_id}")
 async def get_moderation_result(task_id: int) -> ModerateTaskResultOutDto:

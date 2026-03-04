@@ -167,3 +167,65 @@ class TestModerationResultsRedisStorage:
     async def test_storage_ttl_is_timedelta(self, storage):
         assert isinstance(storage._TTL, timedelta)
         assert storage._TTL.total_seconds() > 0
+
+    @pytest.mark.asyncio
+    async def test_delete_calls_conn_delete_with_correct_key(self, storage, redis_mock):
+        mock_connection, _ = redis_mock
+
+        await storage.delete(TASK_ID)
+
+        mock_connection.delete.assert_called_once_with(str(TASK_ID))
+
+
+class TestModerationResultsRepositoryDelete:
+    @pytest.fixture
+    def repo_with_mocks(self, monkeypatch):
+        repo = ModerationResultsRepository()
+        redis_storage = AsyncMock()
+        pg_storage = AsyncMock()
+        monkeypatch.setattr(repo, "moderation_results_redis_storage", redis_storage)
+        monkeypatch.setattr(repo, "moderation_results_postgres_storage", pg_storage)
+        return repo, redis_storage, pg_storage
+
+    @pytest.mark.asyncio
+    async def test_delete_by_item_id_calls_postgres(self, repo_with_mocks):
+        repo, redis_storage, pg_storage = repo_with_mocks
+        pg_storage.delete_by_item_id.return_value = []
+
+        await repo.delete_by_item_id(42)
+
+        pg_storage.delete_by_item_id.assert_called_once_with(42)
+
+    @pytest.mark.asyncio
+    async def test_delete_by_item_id_removes_each_result_from_redis(self, repo_with_mocks):
+        repo, redis_storage, pg_storage = repo_with_mocks
+        pg_storage.delete_by_item_id.return_value = [
+            {**MODERATION_RESULT_DATA, "id": 10},
+            {**MODERATION_RESULT_DATA, "id": 11},
+        ]
+
+        await repo.delete_by_item_id(42)
+
+        assert redis_storage.delete.call_count == 2
+        redis_storage.delete.assert_any_call(10)
+        redis_storage.delete.assert_any_call(11)
+
+    @pytest.mark.asyncio
+    async def test_delete_by_item_id_returns_deleted_models(self, repo_with_mocks):
+        repo, redis_storage, pg_storage = repo_with_mocks
+        pg_storage.delete_by_item_id.return_value = [MODERATION_RESULT_DATA]
+
+        result = await repo.delete_by_item_id(42)
+
+        assert len(result) == 1
+        assert isinstance(result[0], ModerationResultModel)
+        assert result[0].id == TASK_ID
+
+    @pytest.mark.asyncio
+    async def test_delete_by_item_id_no_results_skips_redis(self, repo_with_mocks):
+        repo, redis_storage, pg_storage = repo_with_mocks
+        pg_storage.delete_by_item_id.return_value = []
+
+        await repo.delete_by_item_id(42)
+
+        redis_storage.delete.assert_not_called()

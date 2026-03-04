@@ -233,3 +233,38 @@ class TestDLQ:
         await process_message(data, model, moderation_repo, moderation_service, kafka_client)
 
         assert kafka_client.send_to_dlq.call_args.kwargs["retry_count"] == MAX_RETRIES
+
+
+class TestCloseItem:
+    def test_close_item_returns_204(self, app_client_with_kafka, monkeypatch):
+        client, _ = app_client_with_kafka
+
+        monkeypatch.setattr(
+            routers.moderation.moderation_service,
+            "close_item",
+            AsyncMock(return_value=None),
+        )
+
+        response = client.post("/moderation/close", json={"item_id": 1})
+
+        assert response.status_code == 204
+
+    def test_close_item_not_found_returns_404(self, app_client_with_kafka, monkeypatch):
+        client, _ = app_client_with_kafka
+
+        monkeypatch.setattr(
+            routers.moderation.moderation_service,
+            "close_item",
+            AsyncMock(side_effect=ItemNotFoundError()),
+        )
+
+        response = client.post("/moderation/close", json={"item_id": 999})
+
+        assert response.status_code == 404
+
+    def test_close_item_invalid_item_id_returns_422(self, app_client_with_kafka):
+        client, _ = app_client_with_kafka
+
+        response = client.post("/moderation/close", json={"item_id": -1})
+
+        assert response.status_code == 422

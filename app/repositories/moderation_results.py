@@ -33,6 +33,16 @@ class ModerationResultsPostgresStorage:
 
             raise ModerationResultNotFoundError()
 
+    async def delete_by_item_id(self, item_id: int) -> Sequence[Mapping[str, Any]]:
+        query = '''
+            DELETE FROM moderation_results
+            WHERE item_id = $1::INTEGER
+            RETURNING *
+        '''
+        async with get_pg_connection() as connection:
+            rows = await connection.fetch(query, item_id)
+            return [dict(row) for row in rows]
+
     async def update(self, id: int, **updates: Any) -> Mapping[str, Any]:
         keys, args = [], []
 
@@ -59,10 +69,14 @@ class ModerationResultsPostgresStorage:
         
 class ModerationResultsRedisStorage:
     # TTL = 5 минут.
-    # Клиент может повторно запрашивать результат пока воркер не завершит задачу.
-    # 5 минут — разумный баланс: достаточно для снижения нагрузки на БД при частых
-    # опросах, но не слишком долго, чтобы клиент не получал устаревший статус pending.
+    # Так как в нашей системе пользователь может часто пинговать сервис, пока модель инференсит результат,
+    # то есть смысл держать результат в кеше, чтобы не дергать базу данных при каждом запросе.
+    # Если время инференса модели будет больше, то можно увеличить TTL, чтобы результат дольше держался в кеше.
     _TTL: timedelta = timedelta(minutes=5)
+
+    async def delete(self, row_id: int) -> None:
+        async with get_redis_connection() as connection:
+            await connection.delete(str(row_id))
 
     async def set(self, row_id: int, row: Mapping[str, Any]) -> None:
         async with get_redis_connection() as connection:
@@ -100,6 +114,12 @@ class ModerationResultsRepository:
         await self.moderation_results_redis_storage.set(id, result)
 
         return ModerationResultModel(**result)
+
+    async def delete_by_item_id(self, item_id: int) -> list[ModerationResultModel]:
+        deleted = await self.moderation_results_postgres_storage.delete_by_item_id(item_id)
+        for row in deleted:
+            await self.moderation_results_redis_storage.delete(row["id"])
+        return [ModerationResultModel(**row) for row in deleted]
 
     async def update(self, id: int, **changes) -> ModerationResultModel:
         result = await self.moderation_results_postgres_storage.update(id, **changes)
