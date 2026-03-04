@@ -30,8 +30,7 @@ class AsyncKafkaClient:
         await self.producer.send_and_wait("moderation", value=message)
         logger.info(f"Sent moderation request: {message}")
 
-    async def send_to_dlq(self, original_message: dict, error: str):
-        retry_count = original_message.get("retry_count", 0) + 1
+    async def send_to_dlq(self, original_message: dict, error: str, retry_count: int):
         dlq_message = {
             "original_message": original_message,
             "error": error,

@@ -43,6 +43,7 @@ async def process_message(
                 processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
             logger.info(f"task_id={task_id}: success on attempt {attempt}/{MAX_RETRIES}")
+            logger.info(f"task_id={task_id}: moderation result - violation={bool(pred)}, confidence={confidence:.2f}")
             return
         except Exception as e:
             last_error = str(e)
@@ -57,7 +58,7 @@ async def process_message(
         error_message=last_error,
         processed_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
-    await kafka_client.send_to_dlq(data, last_error)
+    await kafka_client.send_to_dlq(data, last_error, retry_count=MAX_RETRIES)
 
 
 async def run():

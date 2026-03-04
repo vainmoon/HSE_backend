@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 from routers.moderation import ModerateItemInDto
 from main import app
@@ -14,6 +15,20 @@ def app_client():
     app.state.model = DummyModel()
     with TestClient(app) as client:
         yield client
+    app.state.model = None
+
+
+@pytest.fixture
+def mock_kafka():
+    return AsyncMock()
+
+
+@pytest.fixture
+def app_client_with_kafka(monkeypatch, mock_kafka):
+    monkeypatch.setattr("main.AsyncKafkaClient", lambda: mock_kafka)
+    app.state.model = DummyModel()
+    with TestClient(app) as client:
+        yield client, mock_kafka
     app.state.model = None
 
 
