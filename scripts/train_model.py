@@ -48,7 +48,7 @@ def main():
     train_and_save_model(
         save_path=args.path,
         model_name=args.name,
-        use_mlflow=args.mlflow,
+        use_mlflow=args.use_mlflow,
     )
 
 
