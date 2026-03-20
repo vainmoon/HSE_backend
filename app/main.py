@@ -31,7 +31,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-Instrumentator().instrument(app).expose(app)
+Instrumentator().instrument(
+    app,
+    latency_lowr_buckets=[0.001, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
+).expose(app)
 
 @app.exception_handler(InferenceError)
 async def inference_error_handler(request, e):
