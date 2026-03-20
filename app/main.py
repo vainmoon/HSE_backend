@@ -11,6 +11,7 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 from routers.moderation import router as moderation_router
+from routers.auth import router as auth_router
 from services.model_manager import get_model
 from errors import *
 from clients.kafka import AsyncKafkaClient
@@ -81,6 +82,20 @@ async def account_not_found_error_handler(request, e):
         content={"detail": f"Account not found"},
     )
 
+@app.exception_handler(InvalidCredentialsError)
+async def invalid_credentials_error_handler(request, e):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Invalid login or password"},
+    )
+
+@app.exception_handler(AccountBlockedError)
+async def account_blocked_error_handler(request, e):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Account is blocked"},
+    )
+
 @app.exception_handler(ItemNotFoundError)
 async def item_not_found_error_handler(request, e):
     sentry_sdk.capture_exception(e)
@@ -103,6 +118,7 @@ async def root():
 
 
 app.include_router(moderation_router, prefix="/moderation")
+app.include_router(auth_router, prefix="/auth")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8003)
