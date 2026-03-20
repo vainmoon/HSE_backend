@@ -82,6 +82,13 @@ async def account_not_found_error_handler(request, e):
         content={"detail": f"Account not found"},
     )
 
+@app.exception_handler(InvalidTokenError)
+async def invalid_token_error_handler(request, e):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Unauthorized"},
+    )
+
 @app.exception_handler(InvalidCredentialsError)
 async def invalid_credentials_error_handler(request, e):
     return JSONResponse(

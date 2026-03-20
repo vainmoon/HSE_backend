@@ -3,7 +3,8 @@ from pydantic import BaseModel, Field
 import logging
 
 from services.moderation import ModerationService
-from dependencies import get_model, get_kafka_client
+from dependencies import get_model, get_kafka_client, get_current_account
+from models.accounts import AccountModel
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,9 @@ moderation_service = ModerationService()
 
 @router.post("/predict")
 async def moderate_item(
-    dto: ModerateItemInDto, model=Depends(get_model)
+    dto: ModerateItemInDto,
+    model=Depends(get_model),
+    account: AccountModel = Depends(get_current_account),
 ) -> ModerateItemOutDto:
     logger.info("Moderation request: %s", dto.model_dump())
 
@@ -58,7 +61,9 @@ async def moderate_item(
 
 @router.post("/simple_predict")
 async def simple_predict(
-    dto: ModerateItemByIdInDto, model=Depends(get_model)
+    dto: ModerateItemByIdInDto,
+    model=Depends(get_model),
+    account: AccountModel = Depends(get_current_account),
 ) -> ModerateItemOutDto:
     logger.info("Simple moderation request: %s", dto.model_dump())
 
@@ -71,7 +76,8 @@ async def simple_predict(
 @router.post("/async_predict")
 async def async_predict(
     dto: ModerateItemByIdInDto,
-    kafka_client=Depends(get_kafka_client)
+    kafka_client=Depends(get_kafka_client),
+    account: AccountModel = Depends(get_current_account),
 ) -> ModerateTaskInfoOutDto:
     logger.info("Async moderation request: %s", dto.model_dump())
     data = dto.model_dump()
@@ -85,13 +91,19 @@ async def async_predict(
     )
 
 @router.post("/close", status_code=204)
-async def close_item(dto: CloseItemInDto) -> None:
+async def close_item(
+    dto: CloseItemInDto,
+    account: AccountModel = Depends(get_current_account),
+) -> None:
     logger.info("Close item request: %s", dto.model_dump())
     await moderation_service.close_item(dto.item_id)
 
 
 @router.get("/moderation_result/{task_id}")
-async def get_moderation_result(task_id: int) -> ModerateTaskResultOutDto:
+async def get_moderation_result(
+    task_id: int,
+    account: AccountModel = Depends(get_current_account),
+) -> ModerateTaskResultOutDto:
     logger.info("Getting moderation result for task_id: %s", task_id)
 
     task_result = await moderation_service.get_moderation_result(task_id)
