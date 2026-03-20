@@ -126,6 +126,24 @@ services:
       - flyway
       - redis
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      -  api
+
+  grafana:
+    image: grafana/grafana:latest
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   redis_data:
