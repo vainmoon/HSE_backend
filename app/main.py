@@ -73,6 +73,14 @@ async def seller_not_found_error_handler(request, e):
         content={"detail": f"Seller not found"},
     )
 
+@app.exception_handler(AccountNotFoundError)
+async def account_not_found_error_handler(request, e):
+    sentry_sdk.capture_exception(e)
+    return JSONResponse(
+        status_code=404,
+        content={"detail": f"Account not found"},
+    )
+
 @app.exception_handler(ItemNotFoundError)
 async def item_not_found_error_handler(request, e):
     sentry_sdk.capture_exception(e)
