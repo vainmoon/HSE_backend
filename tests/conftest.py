@@ -5,18 +5,26 @@ from fastapi.testclient import TestClient
 from routers.moderation import ModerateItemInDto
 from main import app
 from services.moderation import ModerationService
+from dependencies import get_current_account
+from models.accounts import AccountModel
 
 
 class DummyModel:
     pass
 
 
+def _mock_account() -> AccountModel:
+    return AccountModel(id=1, login="testuser", password="", is_blocked=False)
+
+
 @pytest.fixture
 def app_client():
+    app.dependency_overrides[get_current_account] = _mock_account
     app.state.model = DummyModel()
     with TestClient(app) as client:
         yield client
     app.state.model = None
+    app.dependency_overrides.pop(get_current_account, None)
 
 
 @pytest.fixture
@@ -26,11 +34,13 @@ def mock_kafka():
 
 @pytest.fixture
 def app_client_with_kafka(monkeypatch, mock_kafka):
+    app.dependency_overrides[get_current_account] = _mock_account
     monkeypatch.setattr("main.AsyncKafkaClient", lambda: mock_kafka)
     app.state.model = DummyModel()
     with TestClient(app) as client:
         yield client, mock_kafka
     app.state.model = None
+    app.dependency_overrides.pop(get_current_account, None)
 
 
 @pytest.fixture

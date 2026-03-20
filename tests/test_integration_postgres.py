@@ -3,7 +3,8 @@ import pytest
 from repositories.sellers import SellerPostgresStorage
 from repositories.items import ItemPostgresStorage
 from repositories.moderation_results import ModerationResultsPostgresStorage
-from errors import SellerNotFoundError, ItemNotFoundError, ModerationResultNotFoundError
+from repositories.accounts import AccountPostgresStorage
+from errors import SellerNotFoundError, ItemNotFoundError, ModerationResultNotFoundError, AccountNotFoundError
 
 
 @pytest.mark.integration
@@ -246,3 +247,70 @@ class TestModerationResultsPostgresStorageIntegration:
                 await items.delete(id=item["id"])
         finally:
             await sellers.delete(id=seller["id"])
+
+
+@pytest.mark.integration
+class TestAccountPostgresStorageIntegration:
+    @pytest.mark.asyncio
+    async def test_create_returns_account_with_id(self):
+        storage = AccountPostgresStorage()
+        account = await storage.create(login="user1", password="pass1")
+        try:
+            assert account["id"] > 0
+            assert account["login"] == "user1"
+            assert account["password"] == "pass1"
+            assert account["is_blocked"] is False
+        finally:
+            await storage.delete(id=account["id"])
+
+    @pytest.mark.asyncio
+    async def test_select_returns_created_account(self):
+        storage = AccountPostgresStorage()
+        account = await storage.create(login="user2", password="pass2")
+        try:
+            result = await storage.select(id=account["id"])
+            assert result["id"] == account["id"]
+            assert result["login"] == "user2"
+        finally:
+            await storage.delete(id=account["id"])
+
+    @pytest.mark.asyncio
+    async def test_select_not_found_raises(self):
+        storage = AccountPostgresStorage()
+        with pytest.raises(AccountNotFoundError):
+            await storage.select(id=999999)
+
+    @pytest.mark.asyncio
+    async def test_delete_removes_account(self):
+        storage = AccountPostgresStorage()
+        account = await storage.create(login="user3", password="pass3")
+        await storage.delete(id=account["id"])
+        with pytest.raises(AccountNotFoundError):
+            await storage.select(id=account["id"])
+
+    @pytest.mark.asyncio
+    async def test_block_sets_is_blocked_true(self):
+        storage = AccountPostgresStorage()
+        account = await storage.create(login="user4", password="pass4")
+        try:
+            blocked = await storage.block(id=account["id"])
+            assert blocked["is_blocked"] is True
+        finally:
+            await storage.delete(id=account["id"])
+
+    @pytest.mark.asyncio
+    async def test_select_by_login_and_password_returns_account(self):
+        storage = AccountPostgresStorage()
+        account = await storage.create(login="user5", password="pass5")
+        try:
+            result = await storage.select_by_login_and_password(login="user5", password="pass5")
+            assert result["id"] == account["id"]
+            assert result["login"] == "user5"
+        finally:
+            await storage.delete(id=account["id"])
+
+    @pytest.mark.asyncio
+    async def test_select_by_login_and_password_wrong_credentials_raises(self):
+        storage = AccountPostgresStorage()
+        with pytest.raises(AccountNotFoundError):
+            await storage.select_by_login_and_password(login="nouser", password="nopass")

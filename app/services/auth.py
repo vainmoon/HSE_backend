@@ -44,7 +44,7 @@ class AuthService:
             raise InvalidTokenError("Token is invalid")
 
         return AccountModel(
-            id=payload["sub"],
+            id=int(payload["sub"]),
             login=payload["login"],
             password="",
             is_blocked=payload["is_blocked"],
@@ -52,7 +52,7 @@ class AuthService:
 
     def _issue_token(self, account: AccountModel) -> str:
         payload = {
-            "sub": account.id,
+            "sub": str(account.id),
             "login": account.login,
             "is_blocked": account.is_blocked,
             "exp": datetime.now(tz=timezone.utc) + _TOKEN_TTL,
