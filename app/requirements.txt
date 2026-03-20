@@ -13,3 +13,4 @@ aiokafka
 redis
 prometheus-client
 prometheus-fastapi-instrumentator
+sentry-sdk[fastapi]
