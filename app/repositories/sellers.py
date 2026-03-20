@@ -3,8 +3,10 @@ from typing import Mapping, Any, Sequence
 from clients.postgres import get_pg_connection
 from errors import SellerNotFoundError
 from models.sellers import SellerModel
+from metrics import observe_db_query
 
-class  SellerPostgresStorage:
+class SellerPostgresStorage:
+    @observe_db_query("insert")
     async def create(self, is_verified_seller: bool) -> Mapping[str, Any]:
         query = '''
             INSERT INTO seller (is_verified_seller)
@@ -14,7 +16,8 @@ class  SellerPostgresStorage:
 
         async with get_pg_connection() as connection:
             return dict(await connection.fetchrow(query, is_verified_seller))
-    
+
+    @observe_db_query("delete")
     async def delete(self, id: int) -> Mapping[str, Any]:
         query = '''
             DELETE FROM seller
@@ -27,9 +30,10 @@ class  SellerPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
             raise SellerNotFoundError()
-    
+
+    @observe_db_query("select")
     async def select(self, id: int) -> Mapping[str, Any]:
         query = '''
             SELECT *
@@ -43,9 +47,10 @@ class  SellerPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
             raise SellerNotFoundError()
 
+    @observe_db_query("select")
     async def select_many(self) -> Sequence[Mapping[str, Any]]:
         query = '''
             SELECT *
@@ -57,6 +62,7 @@ class  SellerPostgresStorage:
 
             return [dict(row) for row in rows]
 
+    @observe_db_query("update")
     async def update(self, id: int, **updates: Any) -> Mapping[str, Any]:
         keys, args = [], []
 
@@ -78,7 +84,7 @@ class  SellerPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
             raise SellerNotFoundError()
 
 class SellerRepository:
@@ -99,7 +105,7 @@ class SellerRepository:
     async def update(self, seller_id: int, **changes: Mapping[str, Any]) -> SellerModel:
         raw_seller = await self.seller_postgres_storage.update(seller_id, **changes)
         return SellerModel(**raw_seller)
-    
+
     async def get_many(self) -> Sequence[SellerModel]:
         return [
             SellerModel(**raw_seller)

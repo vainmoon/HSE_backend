@@ -3,8 +3,10 @@ from typing import Mapping, Any, Sequence
 from clients.postgres import get_pg_connection
 from errors import ItemNotFoundError
 from models.items import ItemModel, ItemWithSellerModel
+from metrics import observe_db_query
 
 class ItemPostgresStorage:
+    @observe_db_query("insert")
     async def create(self, name: str, description: str, category: int, images_qty: int, seller_id: int) -> Mapping[str, Any]:
         query = '''
             INSERT INTO item (name, description, category, images_qty, seller_id)
@@ -14,7 +16,8 @@ class ItemPostgresStorage:
 
         async with get_pg_connection() as connection:
             return dict(await connection.fetchrow(query, name, description, category, images_qty, seller_id))
-    
+
+    @observe_db_query("delete")
     async def delete(self, id: int) -> Mapping[str, Any]:
         query = '''
             DELETE FROM item
@@ -27,9 +30,10 @@ class ItemPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
             raise ItemNotFoundError()
-    
+
+    @observe_db_query("select")
     async def select(self, id: int) -> Mapping[str, Any]:
         query = '''
             SELECT *
@@ -46,6 +50,7 @@ class ItemPostgresStorage:
 
             raise ItemNotFoundError()
 
+    @observe_db_query("select")
     async def select_with_seller(self, id: int) -> Mapping[str, Any]:
         query = '''
             SELECT
@@ -70,6 +75,7 @@ class ItemPostgresStorage:
 
             raise ItemNotFoundError()
 
+    @observe_db_query("select")
     async def select_many(self) -> Sequence[Mapping[str, Any]]:
         query = '''
             SELECT *
@@ -81,6 +87,7 @@ class ItemPostgresStorage:
 
             return [dict(row) for row in rows]
 
+    @observe_db_query("update")
     async def update(self, id: int, **updates: Any) -> Mapping[str, Any]:
         keys, args = [], []
 
@@ -102,7 +109,7 @@ class ItemPostgresStorage:
 
             if row:
                 return dict(row)
-            
+
             raise ItemNotFoundError()
 
 class ItemRepository:
@@ -127,7 +134,7 @@ class ItemRepository:
     async def update(self, item_id: int, **changes: Mapping[str, Any]) -> ItemModel:
         raw_item = await self.item_postgres_storage.update(item_id, **changes)
         return ItemModel(**raw_item)
-    
+
     async def get_many(self) -> Sequence[ItemModel]:
         return [
             ItemModel(**raw_item)

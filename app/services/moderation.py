@@ -1,8 +1,16 @@
+import time
+
 from model import predict
 from errors import ModelUnavailableError, InferenceError
 from repositories.items import ItemRepository
 from repositories.sellers import SellerRepository
 from repositories.moderation_results import ModerationResultsRepository
+from metrics import (
+    PREDICTIONS_TOTAL,
+    PREDICTION_DURATION,
+    PREDICTION_ERRORS_TOTAL,
+    MODEL_PREDICTION_PROBABILITY,
+)
 
 class ModerationService:
     def __init__(self):
@@ -12,13 +20,22 @@ class ModerationService:
 
     def moderate_item(self, model, moderate_item: dict):
         if model is None:
+            PREDICTION_ERRORS_TOTAL.labels(error_type="model_unavailable").inc()
             raise ModelUnavailableError
 
         try:
+            start = time.perf_counter()
             pred, confidence = predict(model, moderate_item)
+            PREDICTION_DURATION.observe(time.perf_counter() - start)
+
+            result_label = "violation" if pred else "no_violation"
+            PREDICTIONS_TOTAL.labels(result=result_label).inc()
+            MODEL_PREDICTION_PROBABILITY.observe(confidence)
+
             return pred, confidence
 
         except Exception as e:
+            PREDICTION_ERRORS_TOTAL.labels(error_type="prediction_error").inc()
             raise InferenceError(e)
 
     async def moderate_item_by_id(self, model, item_id: int):
