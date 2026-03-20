@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from contextlib import asynccontextmanager
 import logging
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from routers.moderation import router as moderation_router
 from services.model_manager import get_model
@@ -30,7 +31,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
+Instrumentator().instrument(app).expose(app)
 
 @app.exception_handler(InferenceError)
 async def inference_error_handler(request, e):
